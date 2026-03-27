@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}Scenarios - Rosetta Sandbox{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="bi bi-list-check me-2"></i>Test Scenarios</h2>
+        <p class="text-muted">Pre-defined scenarios for testing governance across industries</p>
+    </div>
+</div>
+
+<div class="row" id="scenarios-container">
+    <div class="col-12 text-center py-5">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="text-muted mt-2">Loading scenarios...</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadScenarios() {
+    try {
+        const response = await fetch('/scenarios');
+        const data = await response.json();
+        displayScenarios(data.scenarios);
+    } catch (error) {
+        document.getElementById('scenarios-container').innerHTML = 
+            '<div class="col-12"><div class="alert alert-danger">Failed to load scenarios</div></div>';
+    }
+}
+
+function displayScenarios(scenarios) {
+    const container = document.getElementById('scenarios-container');
+    
+    // Group by industry
+    const grouped = {};
+    scenarios.forEach(s => {
+        if (!grouped[s.industry]) grouped[s.industry] = [];
+        grouped[s.industry].push(s);
+    });
+    
+    let html = '';
+    for (const [industry, items] of Object.entries(grouped)) {
+        html += `
+        <div class="col-12 mb-4">
+            <h4 class="text-capitalize mb-3">
+                <i class="bi bi-${industry === 'finance' ? 'bank' : industry === 'healthcare' ? 'heart-pulse' : 'globe'} me-2"></i>
+                ${industry}
+            </h4>
+            <div class="row">`;
+        
+        items.forEach(scenario => {
+            html += `
+            <div class="col-md-6 mb-3">
+                <div class="card scenario-card industry-${industry}" onclick="runScenario('${scenario.id}')">
+                    <div class="card-body">
+                        <h5 class="card-title">${scenario.id}</h5>
+                        <p class="card-text">${scenario.name}</p>
+                        <small class="text-muted">
+                            <i class="bi bi-chat-quote me-1"></i>
+                            "${scenario.inputs[0].substring(0, 60)}..."
+                        </small>
+                    </div>
+                </div>
+            </div>`;
+        });
+        
+        html += '</div></div>';
+    }
+    
+    container.innerHTML = html;
+}
+
+async function runScenario(scenarioId) {
+    const card = event.currentTarget;
+    card.innerHTML += '<div class="position-absolute top-50 start-50 translate-middle"><div class="spinner-border spinner-border-sm"></div></div>';
+    
+    try {
+        const response = await fetch('/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                governance: true,
+                scenarios: [scenarioId]
+            })
+        });
+        const data = await response.json();
+        
+        // Show result in modal
+        showResultModal(data.conversations[0]);
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+    
+    card.querySelector('.position-absolute')?.remove();
+}
+
+function showResultModal(conv) {
+    const msg = conv.messages[0] || {};
+    const decision = msg.rosetta_decision || 'unknown';
+    const badgeClass = decision === 'allow' ? 'success' : decision === 'rewrite' ? 'warning' : 'danger';
+    
+    const modalHtml = `
+    <div class="modal fade" id="resultModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <span class="badge bg-${badgeClass} me-2">${decision.toUpperCase()}</span>
+                        ${conv.scenario}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>LLM Response</h6>
+                            <div class="comparison-box">${msg.content || '-'}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Governance Result</h6>
+                            <p><strong>Risk Score:</strong> ${msg.rosetta_risk_score || 0}</p>
+                            <p><strong>Violations:</strong> ${(msg.rosetta_violations || []).join(', ') || 'None'}</p>
+                            ${msg.rosetta_rewrite ? `<div><strong>Rewrite:</strong><div class="comparison-box mt-2">${msg.rosetta_rewrite}</div></div>` : ''}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>`;
+    
+    // Remove existing modal
+    document.getElementById('resultModal')?.remove();
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    const modal = new bootstrap.Modal(document.getElementById('resultModal'));
+    modal.show();
+}
+
+loadScenarios();
+</script>
+{% endblock %}

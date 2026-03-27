@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Logs - Rosetta Sandbox{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="bi bi-file-text me-2"></i>Evaluation Logs</h2>
+        <p class="text-muted">View JSON evaluation logs from test runs</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-folder me-2"></i>Log Files
+            </div>
+            <div class="list-group list-group-flush" id="log-files-list">
+                <div class="list-group-item text-center text-muted py-4">
+                    <div class="spinner-border spinner-border-sm"></div>
+                    Loading...
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-code me-2"></i>Log Content</span>
+                <span class="text-muted small" id="current-log-name">Select a log file</span>
+            </div>
+            <div class="card-body">
+                <div class="json-viewer" id="log-content">
+                    <span class="text-muted">Select a log file from the list to view its contents</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Evaluations -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-clock-history me-2"></i>Recent Evaluation Results (In-Memory)
+            </div>
+            <div class="card-body">
+                <div id="recent-results">
+                    <p class="text-muted text-center py-3">Run some tests to see results here</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadLogFiles() {
+    try {
+        const response = await fetch('/api/logs');
+        const data = await response.json();
+        displayLogFiles(data.files || []);
+    } catch (error) {
+        document.getElementById('log-files-list').innerHTML = 
+            '<div class="list-group-item text-danger">Failed to load logs</div>';
+    }
+}
+
+function displayLogFiles(files) {
+    const container = document.getElementById('log-files-list');
+    
+    if (files.length === 0) {
+        container.innerHTML = '<div class="list-group-item text-muted">No log files found</div>';
+        return;
+    }
+    
+    let html = '';
+    files.forEach(file => {
+        html += `
+        <a href="#" class="list-group-item list-group-item-action" onclick="loadLogFile('${file}'); return false;">
+            <i class="bi bi-file-earmark-code me-2"></i>
+            ${file}
+        </a>`;
+    });
+    container.innerHTML = html;
+}
+
+async function loadLogFile(filename) {
+    document.getElementById('current-log-name').textContent = filename;
+    document.getElementById('log-content').innerHTML = '<div class="text-center"><div class="spinner-border spinner-border-sm"></div></div>';
+    
+    try {
+        const response = await fetch(`/api/logs/${filename}`);
+        const data = await response.json();
+        displayJson(data);
+    } catch (error) {
+        document.getElementById('log-content').innerHTML = '<span class="text-danger">Failed to load file</span>';
+    }
+}
+
+function displayJson(data) {
+    const json = JSON.stringify(data, null, 2);
+    // Syntax highlighting
+    const highlighted = json
+        .replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:')
+        .replace(/: "([^"]+)"/g, ': <span class="json-string">"$1"</span>')
+        .replace(/: (\d+\.?\d*)/g, ': <span class="json-number">$1</span>');
+    
+    document.getElementById('log-content').innerHTML = `<pre style="margin:0; white-space:pre-wrap;">${highlighted}</pre>`;
+}
+
+loadLogFiles();
+</script>
+{% endblock %}
