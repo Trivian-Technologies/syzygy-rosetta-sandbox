@@ -1,6 +1,12 @@
 """
 Syzygy Rosetta — Multi-Agent Conversation Simulator
 
+LEGACY / MOCK-ORIENTED SCRIPT:
+- This file is kept for backward compatibility and quick mock-style demos.
+- It uses simulated agent responses instead of the primary real-LLM flow.
+- For active development, cloud demos, and production-like runs, use:
+  `sandbox/agent_sim_gcp.py`
+
 Runs multi-turn conversation simulations where each agent output
 is passed through POST /evaluate before being returned.
 
@@ -13,6 +19,7 @@ import requests
 import sys
 
 from rosetta_probe import check_rosetta_reachable
+from config import settings
 from datetime import datetime, timezone
 from pathlib import Path
 from dataclasses import dataclass, asdict
@@ -24,7 +31,7 @@ if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 # Configuration
-ROSETTA_URL = "http://localhost:8000"
+ROSETTA_URL = settings.rosetta_url or "http://localhost:8000"
 LOGS_DIR = Path(__file__).parent.parent / "logs"
 RESULTS_DIR = Path(__file__).parent / "results"
 

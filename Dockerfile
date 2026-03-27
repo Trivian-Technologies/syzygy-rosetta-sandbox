@@ -22,7 +22,7 @@ RUN mkdir -p ./logs ./sandbox/results
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app:/app/sandbox
 ENV PORT=8080
 
 # Expose port

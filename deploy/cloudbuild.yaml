@@ -1,4 +1,4 @@
-# Syzygy Rosetta Sandbox — Cloud Build Configuration
+# Syzygy Rosetta Sandbox - Cloud Build Configuration
 # Automated CI/CD pipeline for GCP deployment
 
 steps:

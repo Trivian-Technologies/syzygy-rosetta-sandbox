@@ -16,12 +16,13 @@ from pathlib import Path
 from typing import Dict, List
 
 from rosetta_probe import check_rosetta_reachable
+from config import settings
 
 # Fix Windows console encoding
 if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
-ROSETTA_URL = "http://localhost:8000"
+ROSETTA_URL = settings.rosetta_url or "http://localhost:8000"
 CASE_STUDIES_DIR = Path(__file__).parent / "case_studies"
 LOGS_DIR = Path(__file__).parent.parent / "logs"
 

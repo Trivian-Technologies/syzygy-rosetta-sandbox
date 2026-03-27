@@ -21,12 +21,13 @@ _SANDBOX = Path(__file__).resolve().parent.parent.parent
 if str(_SANDBOX) not in sys.path:
     sys.path.insert(0, str(_SANDBOX))
 from rosetta_probe import check_rosetta_reachable
+from config import settings
 
 # Fix Windows console encoding
 if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
-ROSETTA_URL = "http://localhost:8000"
+ROSETTA_URL = settings.rosetta_url or "http://localhost:8000"
 OUTPUT_DIR = Path(__file__).parent
 LOGS_DIR = Path(__file__).parent.parent.parent.parent / "logs"
 
