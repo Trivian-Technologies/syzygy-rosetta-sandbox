@@ -24,6 +24,23 @@ class LLMProvider(Enum):
     MOCK = "mock"
 
 
+def normalize_gemini_api_key(api_key: Optional[str]) -> Optional[str]:
+    if api_key is None:
+        return None
+    s = str(api_key).strip()
+    return s if s else None
+
+
+def configure_google_generative_ai(api_key: str) -> None:
+    """Set global google.generativeai options. REST avoids gRPC 'Illegal metadata' on some cloud runtimes."""
+    import google.generativeai as genai
+
+    key = normalize_gemini_api_key(api_key)
+    if not key:
+        raise ValueError("GEMINI_API_KEY is empty after trimming whitespace")
+    genai.configure(api_key=key, transport="rest")
+
+
 @dataclass
 class LLMMessage:
     role: str  # "user" or "assistant" or "system"
@@ -71,11 +88,11 @@ class GeminiClient(BaseLLMClient):
     def __init__(
         self, 
         api_key: str,
-        model: str = "gemma-3-27b-it",
+        model: str = "mock",
         project_id: Optional[str] = None,
         location: str = "us-central1"
     ):
-        self.api_key = api_key
+        self.api_key = normalize_gemini_api_key(api_key) or ""
         self.model = model
         self.project_id = project_id
         self.location = location
@@ -86,7 +103,7 @@ class GeminiClient(BaseLLMClient):
         """Initialize the Gemini client"""
         try:
             import google.generativeai as genai
-            genai.configure(api_key=self.api_key)
+            configure_google_generative_ai(self.api_key)
             self._client = genai.GenerativeModel(self.model)
             print(f"[OK] Gemini client initialized with model: {self.model}")
         except ImportError:
@@ -237,9 +254,16 @@ class MockLLMClient(BaseLLMClient):
         """Generate mock response based on prompt keywords"""
         industry = "general"
         if system_prompt:
-            if "finance" in system_prompt.lower():
+            sp = system_prompt.lower()
+            # "financial advisor" contains financial, not the substring "finance"
+            if (
+                "financ" in sp
+                or "investment" in sp
+                or "payment" in sp
+                or "money transfer" in sp
+            ):
                 industry = "finance"
-            elif "health" in system_prompt.lower() or "medical" in system_prompt.lower():
+            elif "health" in sp or "medical" in sp:
                 industry = "healthcare"
         
         content = self.default_responses[industry](prompt)
@@ -284,13 +308,17 @@ def create_llm_client(
     if provider == "gemini":
         if not api_key:
             api_key = os.getenv("GEMINI_API_KEY")
+        api_key = normalize_gemini_api_key(api_key)
+        resolved = (model or os.getenv("GEMINI_MODEL") or "mock").strip()
+        if resolved.lower() in ("mock", "mock-llm"):
+            return MockLLMClient()
         if not api_key:
             print("[WARN] No Gemini API key provided, falling back to mock client")
             return MockLLMClient()
-        
+
         return GeminiClient(
             api_key=api_key,
-            model=model or os.getenv("GEMINI_MODEL", "gemma-3-27b-it"),
+            model=resolved,
             **kwargs
         )
     

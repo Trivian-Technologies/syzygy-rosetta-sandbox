@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 from typing import Optional
 from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic import Field, field_validator
 
 # Load .env file if it exists
 from dotenv import load_dotenv
@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     # LLM Configuration
     llm_provider: str = Field(default="gemini", description="LLM provider: gemini, mock")
     gemini_api_key: Optional[str] = Field(default=None, alias="GEMINI_API_KEY")
-    gemini_model: str = Field(default="gemma-3-27b-it", alias="GEMINI_MODEL")
+    gemini_model: str = Field(default="mock", alias="GEMINI_MODEL")
     gemini_project_id: Optional[str] = Field(default=None, alias="GCP_PROJECT_ID")
     gemini_location: str = Field(default="us-central1", alias="GCP_LOCATION")
     
@@ -44,6 +44,17 @@ class Settings(BaseSettings):
         env_file = str(_ENV_PATH)
         env_file_encoding = "utf-8"
         extra = "ignore"
+
+    @field_validator("gemini_api_key", mode="before")
+    @classmethod
+    def strip_gemini_api_key(cls, v: Optional[str]) -> Optional[str]:
+        """Secret Manager / shell often adds trailing newlines; gRPC then fails with Illegal metadata."""
+        if v is None:
+            return None
+        if isinstance(v, str):
+            s = v.strip()
+            return s if s else None
+        return v
 
     def is_production(self) -> bool:
         return self.environment == "production"

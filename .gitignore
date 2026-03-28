@@ -1,0 +1,8 @@
+# Local secrets and deploy-only config
+.env
+deploy/gcp.env
+
+# Python / tooling
+__pycache__/
+*.py[cod]
+logs/

@@ -31,7 +31,7 @@ steps:
       - '--timeout'
       - '300'
       - '--set-env-vars'
-      - 'ENVIRONMENT=production,GEMINI_MODEL=gemma-3-27b-it'
+      - 'ENVIRONMENT=production,GEMINI_MODEL=mock'
       - '--set-secrets'
       - 'GEMINI_API_KEY=gemini-api-key:latest'
 

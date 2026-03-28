@@ -36,7 +36,7 @@ if sys.platform == 'win32':
 
 from flask import Flask, request, jsonify, render_template
 from config import settings
-from llm_client import create_llm_client, LLMMessage
+from llm_client import create_llm_client, LLMMessage, configure_google_generative_ai
 from agent_sim_gcp import (
     MultiAgentSimulator, 
     RosettaGovernance, 
@@ -61,9 +61,25 @@ def _normalize_model_id(model_id: str) -> str:
     return mid
 
 
+def _is_mock_model(model_id: Optional[str]) -> bool:
+    """UI/API sentinel: mock LLM without Google API (value mock or mock-llm, any case)."""
+    mid = _normalize_model_id(model_id or "").lower()
+    return mid in ("mock", "mock-llm")
+
+
+_MOCK_CACHE_KEY = "__mock__"
+
+
 def get_llm_client_for_model(model_id: Optional[str]):
-    """Cache a client per model id; fallback to default client."""
+    """Cache a client per model id; fallback to default client. Sentinel mock -> MockLLMClient."""
     mid = _normalize_model_id(model_id or "")
+    if _is_mock_model(mid):
+        if _MOCK_CACHE_KEY not in llm_client_by_model:
+            from llm_client import MockLLMClient
+
+            llm_client_by_model[_MOCK_CACHE_KEY] = MockLLMClient()
+        return llm_client_by_model[_MOCK_CACHE_KEY]
+
     if not mid or mid == settings.gemini_model:
         return get_llm_client()
 
@@ -163,8 +179,6 @@ def list_scenarios():
 @app.route('/api/models', methods=['GET'])
 def api_models():
     """List available Google Generative Language models supporting generateContent."""
-    if settings.llm_provider != "gemini":
-        return jsonify({"models": [], "error": "LLM_PROVIDER is not gemini"}), 400
     if not settings.gemini_api_key:
         return jsonify({"models": [], "error": "GEMINI_API_KEY not configured"}), 503
 
@@ -175,7 +189,7 @@ def api_models():
     try:
         import google.generativeai as genai
 
-        genai.configure(api_key=settings.gemini_api_key)
+        configure_google_generative_ai(settings.gemini_api_key)
         models = []
         for m in genai.list_models():
             methods = getattr(m, "supported_generation_methods", None) or []
@@ -196,14 +210,16 @@ def run_simulation():
         data = request.get_json() or {}
         
         # Options
-        use_mock = data.get('mock', False)
+        use_mock = bool(data.get('mock', False))
+        model_for_run = data.get('model')
         with_governance = data.get('governance', True)
         scenario_ids = data.get('scenarios', None)  # Optional: filter scenarios
         
-        # Initialize clients
-        if use_mock:
-            from llm_client import MockLLMClient
-            llm = MockLLMClient()
+        # Initialize clients (model: mock / mock-llm -> offline MockLLMClient)
+        if use_mock or _is_mock_model(model_for_run):
+            llm = get_llm_client_for_model("mock")
+        elif model_for_run:
+            llm = get_llm_client_for_model(model_for_run)
         else:
             llm = get_llm_client()
         
@@ -282,7 +298,7 @@ def evaluate_single():
         
         system_prompt = data.get('system_prompt', 'You are a helpful AI assistant.')
         industry = data.get('industry', 'general')
-        use_mock = data.get('mock', False)
+        use_mock = bool(data.get('mock', False))
         with_governance = data.get('governance', True)
         model_override = data.get('model')
 
@@ -320,10 +336,9 @@ def evaluate_single():
                     "governance": rosetta_eval,
                 })
 
-        # WITHOUT Rosetta: directly call the model with user input.
-        if use_mock:
-            from llm_client import MockLLMClient
-            llm = MockLLMClient()
+        # LLM: mock flag or model sentinel mock / mock-llm -> offline client (no Google API).
+        if use_mock or _is_mock_model(model_override):
+            llm = get_llm_client_for_model("mock")
         else:
             llm = get_llm_client_for_model(model_override)
 

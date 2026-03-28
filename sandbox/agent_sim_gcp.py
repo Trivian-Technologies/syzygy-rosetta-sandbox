@@ -8,8 +8,9 @@ Usage:
     # With real Gemini LLM
     GEMINI_API_KEY=your_key python sandbox/agent_sim_gcp.py
     
-    # With mock LLM (testing)
+    # With mock LLM (testing, no Google API)
     python sandbox/agent_sim_gcp.py --mock
+    python sandbox/agent_sim_gcp.py --model mock
 """
 
 import argparse
@@ -387,17 +388,24 @@ def main():
     parser = argparse.ArgumentParser(description="Syzygy Rosetta Multi-Agent Simulator (GCP)")
     parser.add_argument("--mock", action="store_true", help="Use mock LLM instead of Gemini")
     parser.add_argument("--no-governance", action="store_true", help="Run without Rosetta governance")
-    parser.add_argument("--model", default=None, help="Model id (default: gemma-3-27b-it; e.g. gemini-2.0-flash)")
+    parser.add_argument(
+        "--model",
+        default=None,
+        help="Model id (default from GEMINI_MODEL). Use 'mock' or 'mock-llm' for offline MockLLMClient (no API).",
+    )
     args = parser.parse_args()
     
     print("\n" + "=" * 70)
     print("  SYZYGY ROSETTA — MULTI-AGENT SIMULATOR (GCP Edition)")
     print("=" * 70)
     
-    # Initialize LLM client
-    provider = "mock" if args.mock else settings.llm_provider
-    model = args.model or settings.gemini_model
-    
+    # Initialize LLM client (--mock or --model mock / mock-llm -> offline)
+    want_mock = args.mock or (
+        args.model is not None and str(args.model).strip().lower() in ("mock", "mock-llm")
+    )
+    provider = "mock" if want_mock else settings.llm_provider
+    model = "mock-llm" if want_mock else (args.model or settings.gemini_model)
+
     print(f"\n[*] Initializing LLM client...")
     print(f"    Provider: {provider}")
     print(f"    Model: {model}")

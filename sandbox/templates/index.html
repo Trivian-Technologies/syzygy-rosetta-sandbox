@@ -63,11 +63,11 @@
                 <div class="row g-2 align-items-end">
                     <div class="col-md-8">
                         <label class="form-label mb-1">Selected model (applies to all runs in this browser)</label>
-                        <select class="form-select" id="model-select" disabled>
-                            <option value="">Use default (server-configured)</option>
+                        <select class="form-select" id="model-select">
+                            <option value="mock" selected>Mock LLM (offline, default)</option>
                         </select>
                         <div class="text-muted mt-2" style="font-size:0.9rem;">
-                            Tip: click <strong>Load models</strong> first. List is cached for ~5 minutes.
+                            Default is Mock. Click <strong>Load models</strong> (requires server <code>GEMINI_API_KEY</code>), then pick a Google model here to use real Gemini.
                         </div>
                         <div class="text-danger mt-2" id="models-error" style="display:none; font-size:0.9rem;"></div>
                     </div>
@@ -76,7 +76,7 @@
                             <small class="text-muted">Default model:</small>
                             <div><strong id="default-model">-</strong></div>
                             <small class="text-muted">Active model:</small>
-                            <div><strong id="active-model">Use default</strong></div>
+                            <div><strong id="active-model">Mock LLM (offline)</strong></div>
                         </div>
                     </div>
                 </div>
@@ -369,11 +369,24 @@ const SCENARIOS = {
 };
 
 let runCount = 0;
-let activeModel = localStorage.getItem('rosetta_sandbox_model') || '';
+let _stored = localStorage.getItem('rosetta_sandbox_model');
+let activeModel = (_stored === null || _stored === '') ? 'mock' : _stored;
+if (_stored === null || _stored === '') {
+    localStorage.setItem('rosetta_sandbox_model', 'mock');
+}
 
 function updateActiveModelUI() {
     const activeEl = document.getElementById('active-model');
-    if (activeEl) activeEl.textContent = activeModel ? activeModel : 'Use default';
+    if (!activeEl) return;
+    if (!activeModel) {
+        activeEl.textContent = 'Mock LLM (offline)';
+        return;
+    }
+    if (activeModel === 'mock') {
+        activeEl.textContent = 'Mock LLM (offline)';
+        return;
+    }
+    activeEl.textContent = activeModel;
 }
 
 async function loadModels() {
@@ -395,7 +408,11 @@ async function loadModels() {
         if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
 
         const models = data.models || [];
-        select.innerHTML = '<option value=\"\">Use default (server-configured)</option>';
+        select.innerHTML = '';
+        const mockOpt = document.createElement('option');
+        mockOpt.value = 'mock';
+        mockOpt.textContent = 'Mock LLM (offline, default)';
+        select.appendChild(mockOpt);
         models.forEach(m => {
             const opt = document.createElement('option');
             opt.value = m;
@@ -403,7 +420,6 @@ async function loadModels() {
             select.appendChild(opt);
         });
 
-        select.disabled = false;
         select.value = activeModel;
         updateActiveModelUI();
     } catch (e) {
@@ -418,7 +434,7 @@ async function loadModels() {
 
 document.getElementById('load-models-btn').addEventListener('click', loadModels);
 document.getElementById('model-select').addEventListener('change', function() {
-    activeModel = this.value || '';
+    activeModel = this.value || 'mock';
     localStorage.setItem('rosetta_sandbox_model', activeModel);
     updateActiveModelUI();
 });
@@ -432,6 +448,17 @@ async function checkStatus() {
         // Update LLM status
         document.getElementById('llm-status').textContent = data.llm_provider || 'Unknown';
         document.getElementById('default-model').textContent = data.gemini_model || '-';
+        const sel = document.getElementById('model-select');
+        if (sel) {
+            const hasOpt = Array.from(sel.options).some((o) => o.value === activeModel);
+            if (!hasOpt) {
+                sel.value = 'mock';
+                activeModel = 'mock';
+                localStorage.setItem('rosetta_sandbox_model', 'mock');
+            } else {
+                sel.value = activeModel;
+            }
+        }
         updateActiveModelUI();
         
         // Check Rosetta
@@ -615,7 +642,13 @@ function displayCustomResult(data) {
     }
 }
 
-// Initialize
+// Initialize model dropdown from localStorage (default mock)
+(function initModelSelect() {
+    const sel = document.getElementById('model-select');
+    if (sel) sel.value = activeModel;
+    updateActiveModelUI();
+})();
+
 checkStatus();
 </script>
 {% endblock %}

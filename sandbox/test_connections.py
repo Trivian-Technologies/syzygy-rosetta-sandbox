@@ -89,10 +89,12 @@ print("\n[TEST 3] Gemini API Connection")
 print("-" * 40)
 
 gemini_key = os.getenv("GEMINI_API_KEY")
-gemini_model = os.getenv("GEMINI_MODEL", "gemma-3-27b-it")
+gemini_model = os.getenv("GEMINI_MODEL", "mock")
 
 if not gemini_key:
     print("[ERROR] GEMINI_API_KEY not set!")
+elif gemini_model.strip().lower() in ("mock", "mock-llm"):
+    print(f"Model: {gemini_model} (offline mock — set GEMINI_MODEL to a Google model id to test the API)")
 else:
     print(f"API Key: {gemini_key[:10]}...{gemini_key[-4:]}")
     print(f"Model: {gemini_model}")
@@ -101,7 +103,7 @@ else:
         import google.generativeai as genai
         
         print("\nInitializing Gemini client...")
-        genai.configure(api_key=gemini_key)
+        genai.configure(api_key=gemini_key.strip(), transport="rest")
         model = genai.GenerativeModel(gemini_model)
         
         print("Sending test message...")
