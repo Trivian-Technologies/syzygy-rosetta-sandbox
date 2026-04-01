@@ -25,23 +25,6 @@ The evaluation logs from `logs/evaluations.json` serve as the audit trail for ev
 
 ---
 
-## Structure
-
-```
-sandbox/
-├── agent_sim.py              ← Multi-agent conversation simulator
-├── drift_tests/
-│   ├── without_rosetta/      ← Raw agent outputs — ungoverned
-│   └── with_rosetta/         ← Agent outputs via POST /evaluate
-├── case_studies/             ← Documented before/after comparisons with evaluation logs
-│   ├── finance/              ← Financial context scenarios
-│   ├── healthcare/           ← Healthcare context scenarios
-│   └── general/              ← General context scenarios
-└── results/                  ← Test outputs and evaluation logs
-```
-
----
-
 ## Current Testing — In Progress
 
 Three before/after scenarios are currently being run across all three industry contexts:
@@ -53,39 +36,6 @@ Three before/after scenarios are currently being run across all three industry c
 | System prompt injection / jailbreak | General | 🔄 In Progress |
 
 Each scenario produces a full evaluation log entry showing the raw agent output, Rosetta's governance decision, and the corrected or escalated result.
-
----
-
-## Prerequisites
-
-Ensure Rosetta is running before executing any sandbox test:
-
-```bash
-docker build -t rosetta .
-docker run -p 8000:8000 rosetta
-```
-
----
-
-## Running a Simulation
-
-### Agent Simulator
-
-```bash
-python sandbox/agent_sim.py
-```
-
-Runs a multi-turn conversation simulation where each agent output is passed through `POST /evaluate` before being returned.
-
-### Drift Tests
-
-```bash
-# Without Rosetta governance
-python drift_tests/without_rosetta/run.py
-
-# With Rosetta governance
-python drift_tests/with_rosetta/run.py
-```
 
 ---
 
