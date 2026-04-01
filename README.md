@@ -89,6 +89,8 @@ The sandbox produces the **primary investor demo evidence** for Syzygy Rosetta. 
 
 ---
 
+SANDBOX DEMO live on GCP: https://rosetta-sandbox-6tl4ak7zmq-uc.a.run.app/
+
 ## Organization
 
 Part of the [Trivian Technologies](https://github.com/Trivian-Technologies) organization.
